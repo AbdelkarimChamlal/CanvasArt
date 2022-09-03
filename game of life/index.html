@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game OF Life</title>
+    <style>
+        #canvas-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.js" integrity="sha512-+tu0+vUXyZX+S51npa//IN6znNTLZsBoy8mXn9WzHxfBqYMy6gOzzfTK0VqZf9O171RY9AJviHDokCnvEq8+1A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/md5.js"></script>
+
+<script>
+    let cellSize = 3;
+    let cellColumns = 400;
+    let cellRows = 240;
+    let gameCells = [];
+    let hashes = [];
+    let xoff = 0;
+    let yoff = 0;
+    let inits = [];
+
+    let hash = (target) => {
+        var buffer = crypto.subtle.digest("SHA-256", new TextEncoder().encode(target));
+        var chars = Array.prototype.map.call(new Uint8Array(buffer), ch => String.fromCharCode(ch)).join('');
+        return btoa(chars);
+    };
+
+    let init = () => {
+        let table = [];
+        for(let i = 0; i < cellColumns; i++){
+            let row = [];
+            yoff = 0;
+            for(let j = 0; j < cellRows; j++){
+                let value = Math.random() > 0.5 ? 1 : 0;
+                row.push(value);
+                yoff += 0.01;
+            }
+            xoff += 0.01;
+            table.push(row);
+        }
+        let initState = JSON.stringify(table);
+        console.log("init state: " + initState);
+        inits.push(initState);
+        console.log("attempting: " + inits.length + " times");
+        return table;
+    }
+
+    function setup(){
+        createCanvas(1000, 600).parent("canvas-container");
+        gameCells = init();
+        // frameRate(10);
+    }
+
+    let update = (gameCellsInstant) => {
+        let table = [];
+        for(let i = 0; i < cellColumns; i++){
+            let row = [];
+            for(let j = 0; j < cellRows ; j++){
+                let cell = gameCellsInstant[i][j];
+                let neighbours = 0;
+                for(let x = -1; x <= 1; x++){
+                    for(let y = -1; y <= 1; y++){
+                        neighbours = (x == i && j == y) || i+x < 0 || i+x > cellColumns - 1 || j+y < 0 || j+y > cellRows - 1 ? neighbours : neighbours + gameCellsInstant[i+x][j+y];
+                    }
+                }
+                if(cell == 1 && (neighbours < 2 || neighbours > 3)){
+                    row.push(0);
+                }else if(cell == 0 && (neighbours == 3)){
+                    row.push(1);
+                }else{
+                    row.push(cell);
+                }
+            }
+            table.push(row);
+        }
+
+        let chars = CryptoJS.MD5(JSON.stringify(table)).toString();
+        if(hashes.includes(chars)){
+            // count how many times the same hash appears
+            let count = 0;
+            for(let i = 0; i < hashes.length; i++){
+                if(hashes[i] == chars){
+                    count++;
+                }
+            }
+            // if the same hash appears 3 times, the game is over
+            if(count == 5){
+                // console.log(hashes);
+                console.log("Game restarted");
+                hashes = [];
+                gameCells = init();
+                return gameCells;
+            }
+
+        }
+
+        hashes.push(chars);
+        return table;
+    }
+
+    function draw(){
+        background(0);
+        for(let i = 0; i < cellColumns; i++){
+            for(let j = 0; j < cellRows; j++){
+                if(gameCells[i][j] == 1){
+                    fill(255);
+                    rect(i*cellSize, j*cellSize, cellSize, cellSize);
+                }
+            }
+        }
+
+        gameCells = update(gameCells);
+    }
+
+
+
+</script>
+</html>
